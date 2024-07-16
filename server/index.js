@@ -9,26 +9,26 @@ const fs = require('fs');
 const app = express();
 const port = process.env.PORT || 5003;
 
-// Middleware to set CORS headers
+// Define allowed origins
+const allowedOrigins = ['https://enotes-mern.netlify.app'];
+
 const corsOptions = {
-  origin: 'https://enotes-mern.vercel.app/', // Your frontend URL without trailing slash
+  origin: (origin, callback) => {
+    if (allowedOrigins.includes(origin) || !origin) {
+      callback(null, true);
+    } else {
+      callback(new Error('Not allowed by CORS'));
+    }
+  },
+  optionsSuccessStatus: 200,
   methods: 'GET, POST, PUT, DELETE',
   allowedHeaders: 'Content-Type, Authorization',
   credentials: true,
-  optionsSuccessStatus: 200 // For legacy browser support
 };
+
 app.use(cors(corsOptions));
-
-// Middleware
 app.use(express.json());
-app.use(cors());
 app.use('/uploads', express.static(path.join(__dirname, 'uploads')));
-
-// Define uploads directory
-const uploadsDir = path.join(__dirname, 'uploads');
-
-// Serve static files from uploads directory
-app.use('/uploads', express.static(uploadsDir));
 
 // MongoDB connection
 mongoose.connect(process.env.MONGODB_URI, {
@@ -41,38 +41,19 @@ mongoose.connect(process.env.MONGODB_URI, {
 // File model
 const File = require('./models/File');
 
-// File download
-app.get('/download/:filename', (req, res) => {
-  const { filename } = req.params;
-  const filePath = path.join(uploadsDir, filename);
-
-  // Check if the file exists
-  if (fs.existsSync(filePath)) {
-    // Set the appropriate headers
-    res.setHeader('Content-Type', 'application/octet-stream');
-    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
-
-    // Stream the file to the client
-    const fileStream = fs.createReadStream(filePath);
-    fileStream.pipe(res);
-  } else {
-    res.status(404).json({ message: 'File not found' });
-  }
-});
-
 // Multer configuration
 const storage = multer.diskStorage({
-  destination: function (req, file, cb) {
+  destination: (req, file, cb) => {
     cb(null, 'uploads/');
   },
-  filename: function (req, file, cb) {
+  filename: (req, file, cb) => {
     cb(null, Date.now() + path.extname(file.originalname));
   }
 });
 
-const upload = multer({ 
-  storage: storage ,
-limits: { fileSize: 5 * 1024 * 1024 } // 5MB file size limit
+const upload = multer({
+  storage: storage,
+  limits: { fileSize: 5 * 1024 * 1024 } // 5MB file size limit
 });
 
 // Routes
@@ -96,26 +77,7 @@ app.post('/upload', upload.single('file'), async (req, res) => {
     res.status(201).json(savedFile);
   } catch (err) {
     console.error('Error saving file:', err);
-    res.status(400).json({ message: err.message });
-  }
-});
-
-app.put('/update/:id', async (req, res) => {
-  try {
-    const updatedFile = await File.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.status(200).json(updatedFile);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
-  }
-});
-
-// Delete a file
-app.delete('/delete/:id', async (req, res) => {
-  try {
-    const deletedFile = await File.findByIdAndDelete(req.params.id);
-    res.status(200).json(deletedFile);
-  } catch (err) {
-    res.status(400).json({ message: err.message });
+    res.status(500).json({ message: 'Error saving file' });
   }
 });
 
@@ -124,10 +86,46 @@ app.get('/files', async (req, res) => {
     const files = await File.find();
     res.status(200).json(files);
   } catch (err) {
-    res.status(500).json({ message: err.message });
+    res.status(500).json({ message: 'Error fetching files' });
+  }
+});
+
+app.get('/download/:filename', (req, res) => {
+  const { filename } = req.params;
+  const filePath = path.join(__dirname, 'uploads', filename);
+
+  // Check if the file exists
+  if (fs.existsSync(filePath)) {
+    // Set the appropriate headers
+    res.setHeader('Content-Type', 'application/octet-stream');
+    res.setHeader('Content-Disposition', `attachment; filename=${filename}`);
+
+    // Stream the file to the client
+    const fileStream = fs.createReadStream(filePath);
+    fileStream.pipe(res);
+  } else {
+    res.status(404).json({ message: 'File not found' });
+  }
+});
+
+app.put('/update/:id', async (req, res) => {
+  try {
+    const updatedFile = await File.findByIdAndUpdate(req.params.id, req.body, { new: true });
+    res.status(200).json(updatedFile);
+  } catch (err) {
+    res.status(400).json({ message: 'Error updating file' });
+  }
+});
+
+app.delete('/delete/:id', async (req, res) => {
+  try {
+    const deletedFile = await File.findByIdAndDelete(req.params.id);
+    res.status(200).json(deletedFile);
+  } catch (err) {
+    res.status(400).json({ message: 'Error deleting file' });
   }
 });
 
 app.listen(port, () => {
-  console.log(`Server is running on http://localhost:${port}`);
+  console.log(`Server is running on port ${port}`);
 });
