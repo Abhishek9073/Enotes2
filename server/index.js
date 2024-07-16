@@ -10,14 +10,13 @@ const app = express();
 const port = process.env.PORT || 5003;
 
 // Middleware to set CORS headers
-const corsOptions = {
-  origin: 'https://enotes-mern.vercel.app/', // Your frontend URL without trailing slash
-  methods: 'GET, POST, PUT, DELETE',
-  allowedHeaders: 'Content-Type, Authorization',
-  credentials: true,
-  optionsSuccessStatus: 200 // For legacy browser support
-};
-app.use(cors(corsOptions));
+// const corsOptions = {
+//   origin: 'https://enotes-mern.netlify.app', // Your frontend URL without trailing slash
+//   methods: 'GET, POST, PUT, DELETE',
+//   allowedHeaders: 'Content-Type, Authorization',
+//   credentials: true,
+//   optionsSuccessStatus: 200 // For legacy browser support
+// };
 
 // Middleware
 app.use(express.json());
